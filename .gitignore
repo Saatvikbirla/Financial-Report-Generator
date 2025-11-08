@@ -1,0 +1,93 @@
+# -----------------------------
+# 🐍 Python / FastAPI backend
+# -----------------------------
+backend/.venv/
+backend/__pycache__/
+backend/**/*.pyc
+backend/**/*.pyo
+backend/**/*.pyd
+backend/.pytest_cache/
+backend/.mypy_cache/
+backend/.DS_Store
+backend/outputs/
+backend/*.log
+
+# Environment / config
+*.env
+.env.*
+!.env.example
+
+# Virtualenv directories
+venv/
+ENV/
+env/
+.venv/
+pip-wheel-metadata/
+__pycache__/
+
+# Compiled code
+*.pyc
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+
+# -----------------------------
+# ⚛️ Node / Next.js frontend
+# -----------------------------
+frontend/node_modules/
+frontend/.next/
+frontend/.vercel/
+frontend/out/
+frontend/.env.local
+frontend/.env.development
+frontend/.env.production
+frontend/.env.test
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+frontend/pnpm-debug.log*
+frontend/package-lock.json
+frontend/.DS_Store
+
+# Next.js build artifacts
+*.tsbuildinfo
+next-env.d.ts
+
+# -----------------------------
+# 🧰 OS / IDE specific
+# -----------------------------
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Linux
+*~
+.nfs*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# VS Code / JetBrains
+.vscode/
+.idea/
+*.code-workspace
+
+# -----------------------------
+# 🧪 Data / Reports / Cache
+# -----------------------------
+*.pdf
+*.csv
+*.xlsx
+*.zip
+*.bak
+*.tmp
+*.swp
+*.swo
