@@ -31,7 +31,7 @@ router = APIRouter(prefix="/web", tags=["web"])
 async def compute(payload: dict = Body(...)):
     """
     Accepts: { tickers: [str], start: 'YYYY-MM-DD', end: 'YYYY-MM-DD', interval: '1d'|'1wk'|'1mo', rf?: float }
-    Returns JSON for the frontend charts + summary cards.
+    Returns JSON for the frontend charts + summary cards, plus any per-ticker errors.
     """
     tickers = payload.get("tickers") or []
     start = payload.get("start")
@@ -42,24 +42,28 @@ async def compute(payload: dict = Body(...)):
     if not tickers or not start or not end:
         raise HTTPException(400, "tickers, start, end are required")
 
-    # 1) prices dataframe (columns=tickers, index=dates)
-    prices = fetch_prices(tickers, start, end, interval)
+    # 1) prices + errors
+    prices, errors = fetch_prices(tickers, start, end, interval)
 
-    # 2) metrics bundle (returns, cum, rolling, summary, etc.)
+    # If ALL tickers failed, bail with a clear error
+    if prices.empty:
+        detail = "No valid price data for any ticker. "
+        if errors:
+            detail += "Errors: " + "; ".join(f"{k}: {v}" for k, v in errors.items())
+        raise HTTPException(status_code=400, detail=detail)
+
+    # 2) metrics bundle for successful tickers only
     metrics = compute_all_metrics(prices, rf=rf, interval=interval)
 
     # ---- Helpers to shape pandas → JSON expected by the frontend ----
-    # prices → { TICKER: [{date, price}] }
     prices_dict = {
         col: [{"date": str(idx.date()), "price": float(val)} for idx, val in prices[col].dropna().items()]
         for col in prices.columns
     }
 
-    # cum → { TICKER: [{date, value}] }
     def df_to_value_series(df: pd.DataFrame) -> dict:
         if df is None or df.empty:
             return {}
-        # flatten any multiindex
         if isinstance(df.columns, pd.MultiIndex):
             df.columns = [c[-1] for c in df.columns]
         out = {}
@@ -68,12 +72,9 @@ async def compute(payload: dict = Body(...)):
         return out
 
     cum_dict = df_to_value_series(metrics["cum"])
-
-    # drawdown = cum/cum.max - 1
     drawdown_df = metrics["cum"] / metrics["cum"].cummax() - 1
     drawdown_dict = df_to_value_series(drawdown_df)
 
-    # rolling vol / sharpe
     roll_vol = {
         k: [{"date": str(i.date()), "value": float(v)} for i, v in d["vol"].dropna().items()]
         for k, d in metrics["rolling"].items()
@@ -89,7 +90,9 @@ async def compute(payload: dict = Body(...)):
         "drawdown": drawdown_dict,
         "roll": {"vol": roll_vol, "sharpe": roll_sharpe},
         "summary": metrics["summary"],
+        "errors": errors,  # 👈 per-ticker issues surfaced to frontend
     }
+
 
 @router.get("/pdf")
 async def download_pdf(tickers: str, start: str, end: str, interval: str = "1d", rf: float = 0.0):
@@ -101,7 +104,14 @@ async def download_pdf(tickers: str, start: str, end: str, interval: str = "1d",
     if not tickers_list or not start or not end:
         raise HTTPException(400, "tickers, start, end are required")
 
-    prices = fetch_prices(tickers_list, start, end, interval)
+    prices, errors = fetch_prices(tickers_list, start, end, interval)
+
+    if prices.empty:
+        detail = "No valid price data for any ticker. "
+        if errors:
+            detail += "Errors: " + "; ".join(f"{k}: {v}" for k, v in errors.items())
+        raise HTTPException(status_code=400, detail=detail)
+
     metrics = compute_all_metrics(prices, rf=rf, interval=interval)
 
     tmp_path = Path(tempfile.gettempdir()) / "financial_report.pdf"

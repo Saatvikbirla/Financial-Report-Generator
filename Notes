@@ -1,0 +1,11 @@
+How to start the backend:
+
+cd backend
+source .venv/bin/activate
+uvicorn app:app --reload --port 8000
+
+
+How to start the frontend:
+
+cd ../frontend
+npm run dev

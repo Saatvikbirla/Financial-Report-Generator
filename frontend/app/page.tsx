@@ -42,7 +42,9 @@ export default function FinancialReportApp() {
   const [rf, setRf] = useState<string>("0.02");
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<any | null>(null);
+  const [backendErrors, setBackendErrors] = useState<Record<string, string>>({});
   const [showSticky, setShowSticky] = useState(false);
+
 
   // Autocomplete filter (starts-with on symbol or name)
   const suggestions = useMemo(() => {
@@ -78,6 +80,7 @@ export default function FinancialReportApp() {
       if (!res.ok) throw new Error(`Compute error ${res.status}`);
       const json = await res.json();
       setData(json);
+      setBackendErrors(json.errors || {});
     } catch (e) {
       console.error(e);
       alert("Failed to compute report. Check backend.");
@@ -103,32 +106,6 @@ export default function FinancialReportApp() {
 
   return (
     <div className="min-h-screen bg-[#0b0f1a] text-white">
-      {/* Sticky top bar once results are shown */}
-      <div className={classNames("sticky top-0 z-40 border-b border-white/10 bg-[#0b0f1acc] backdrop-blur", !showSticky && "hidden")}> 
-        <div className="mx-auto max-w-6xl px-4 py-3 flex items-center gap-3">
-          {/* Chips */}
-          <div className="flex flex-wrap gap-2">
-            {selected.map((s) => (
-              <span key={s} className="rounded-full bg-white/10 px-3 py-1 text-sm">
-                {s}
-                <button className="ml-2 text-white/70 hover:text-white" onClick={() => removeTicker(s)}>×</button>
-              </span>
-            ))}
-          </div>
-          <div className="ml-auto flex items-center gap-2">
-            <input type="date" value={start} onChange={(e) => setStart(e.target.value)} className="rounded bg-white/10 px-2 py-1"/>
-            <input type="date" value={end} onChange={(e) => setEnd(e.target.value)} className="rounded bg-white/10 px-2 py-1"/>
-            <select value={interval} onChange={(e) => setInterval(e.target.value as any)} className="rounded bg-white/10 px-2 py-1">
-              <option value="1d">1d</option>
-              <option value="1wk">1wk</option>
-              <option value="1mo">1mo</option>
-            </select>
-            <button onClick={runReport} className="rounded bg-emerald-500 px-3 py-1 font-medium hover:bg-emerald-400 disabled:opacity-50" disabled={loading}>Run</button>
-            <button onClick={downloadPDF} className="rounded bg-indigo-500 px-3 py-1 font-medium hover:bg-indigo-400 disabled:opacity-50" disabled={!data}>Download PDF</button>
-          </div>
-        </div>
-      </div>
-
       {/* Hero / Landing */}
       <header className="mx-auto max-w-6xl px-4 pt-16 pb-10">
         <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight">What do you want to know?</h1>
@@ -211,6 +188,18 @@ export default function FinancialReportApp() {
       {/* Results */}
       {data && (
         <section className="mx-auto max-w-6xl px-4 mt-10 mb-20">
+          {backendErrors && Object.keys(backendErrors).length > 0 && (
+            <div className="mb-4 rounded-xl border border-amber-400/40 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">
+              <div className="font-semibold mb-1">Some tickers were skipped:</div>
+              <ul className="list-disc pl-5 space-y-1">
+                {Object.entries(backendErrors).map(([ticker, msg]) => (
+                  <li key={ticker}>
+                    <span className="font-mono">{ticker}</span>: {msg}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           <h2 className="text-2xl font-bold mb-4">Report</h2>
           {/* Summary cards */}
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
