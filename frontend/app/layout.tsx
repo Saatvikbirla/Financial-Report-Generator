@@ -1,9 +1,14 @@
-export const metadata = { title: "FinReport", description: "Financial Report Generator" };
+import "./globals.css";
+
+export const metadata = {
+  title: "FinReport",
+  description: "Automated Financial Report Generator",
+};
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body style={{ margin: 0, fontFamily: "ui-sans-serif, system-ui" }}>{children}</body>
+      <body>{children}</body>
     </html>
   );
 }

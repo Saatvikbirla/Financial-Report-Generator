@@ -35,23 +35,7 @@ type BackendData = {
   errors?: Record<string, string>;
 };
 
-const COMMON_TICKERS: { symbol: string; name: string }[] = [
-  { symbol: "AAPL", name: "Apple Inc." },
-  { symbol: "MSFT", name: "Microsoft Corporation" },
-  { symbol: "GOOGL", name: "Alphabet Inc. (Class A)" },
-  { symbol: "AMZN", name: "Amazon.com, Inc." },
-  { symbol: "META", name: "Meta Platforms, Inc." },
-  { symbol: "TSLA", name: "Tesla, Inc." },
-  { symbol: "NVDA", name: "NVIDIA Corporation" },
-  { symbol: "NFLX", name: "Netflix, Inc." },
-  { symbol: "JPM", name: "JPMorgan Chase & Co." },
-  { symbol: "V", name: "Visa Inc." },
-  { symbol: "MA", name: "Mastercard Incorporated" },
-  { symbol: "AMD", name: "Advanced Micro Devices, Inc." },
-  { symbol: "INTC", name: "Intel Corporation" },
-  // removed BRK.B because yfinance is flaky with it
-  { symbol: "SHOP", name: "Shopify Inc." },
-];
+
 
 function classNames(...xs: Array<string | false | null | undefined>) {
   return xs.filter(Boolean).join(" ");
@@ -68,24 +52,18 @@ export default function FinancialReportApp() {
   const [data, setData] = useState<BackendData | null>(null);
   const [backendErrors, setBackendErrors] = useState<Record<string, string>>({});
   const [showSticky, setShowSticky] = useState(false);
-
-  // Autocomplete suggestions
-  const suggestions = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return COMMON_TICKERS.slice(0, 6);
-    return COMMON_TICKERS.filter(
-      (t) => t.symbol.toLowerCase().startsWith(q) || t.name.toLowerCase().includes(q),
-    ).slice(0, 10);
-  }, [query]);
+  const [suggestions, setSuggestions] = useState<
+  { symbol: string; name: string; exchange?: string }[]
+>([]);
 
   function addTicker(sym: string) {
-    setQuery("");
-    setSelected((prev) => {
-      if (prev.includes(sym)) return prev;
-      if (prev.length >= 5) return prev;
-      return [...prev, sym];
-    });
+  setSelected((prev) => {
+    if (prev.includes(sym)) return prev;
+    if (prev.length >= 5) return prev;
+    return [...prev, sym];
+  });
   }
+
 
   function removeTicker(sym: string) {
     setSelected((prev) => prev.filter((s) => s !== sym));
@@ -244,7 +222,30 @@ export default function FinancialReportApp() {
                 </div>
                 <input
                   value={query}
-                  onChange={(e) => setQuery(e.target.value)}
+                  onChange={async (e) => {
+                    const val = e.target.value;
+                    setQuery(val);
+
+                    const trimmed = val.trim();
+                    if (!trimmed) {
+                      setSuggestions([]);
+                      return;
+                    }
+
+                    try {
+                      const res = await fetch(
+                        `http://localhost:8000/web/search?q=${encodeURIComponent(trimmed)}`
+                      );
+                      if (!res.ok) {
+                        setSuggestions([]);
+                        return;
+                      }
+                      const json = await res.json();
+                      setSuggestions(json.results || []);
+                    } catch {
+                      setSuggestions([]);
+                    }
+                  }}
                   placeholder="Search tickers (e.g., AAPL, MSFT, TSLA)"
                   className="w-full rounded-lg bg-transparent px-3 py-2 outline-none placeholder:text-white/40"
                 />

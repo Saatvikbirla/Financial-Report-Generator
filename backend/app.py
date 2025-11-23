@@ -1,3 +1,6 @@
+from pathlib import Path
+import pandas as pd
+import httpx
 from fastapi import FastAPI, APIRouter, Body, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
@@ -11,6 +14,21 @@ from finance.metrics import compute_all_metrics
 from finance.report import build_pdf_report
 
 app = FastAPI(title="FinReport API", version="0.2.0")
+
+BASE_DIR = Path(__file__).resolve().parent
+SYMBOLS_CSV = BASE_DIR / "data" / "us_symbols.csv"
+
+# Load once at startup
+try:
+  SYMBOLS_DF = pd.read_csv(SYMBOLS_CSV)
+  # Normalize columns just in case
+  SYMBOLS_DF["symbol"] = SYMBOLS_DF["symbol"].astype(str)
+  SYMBOLS_DF["name"] = SYMBOLS_DF["name"].astype(str)
+  if "exchange" not in SYMBOLS_DF.columns:
+      SYMBOLS_DF["exchange"] = ""
+except FileNotFoundError:
+  print(f"[WARN] Symbols CSV not found at {SYMBOLS_CSV}. /web/search will return empty results.")
+  SYMBOLS_DF = pd.DataFrame(columns=["symbol", "name", "exchange"])
 
 # Allow your Next.js dev server to call the API
 app.add_middleware(
@@ -26,6 +44,38 @@ def health():
     return {"status": "ok"}
 
 router = APIRouter(prefix="/web", tags=["web"])
+
+import httpx
+from fastapi import HTTPException
+
+@router.get("/search")
+async def search_tickers(q: str):
+    """
+    Local search over us_symbols.csv.
+
+    Returns:
+      { "results": [ { "symbol": str, "name": str, "exchange": str }, ... ] }
+    """
+    query = (q or "").strip().lower()
+    if not query or SYMBOLS_DF.empty:
+        return {"results": []}
+
+    df = SYMBOLS_DF
+
+    # Match: symbol starts with query OR name contains query
+    mask = df["symbol"].str.lower().str.startswith(query) | df["name"].str.lower().str.contains(query)
+    subset = df[mask].head(10)
+
+    results = [
+        {
+            "symbol": row["symbol"],
+            "name": row["name"],
+            "exchange": row.get("exchange", ""),
+        }
+        for _, row in subset.iterrows()
+    ]
+
+    return {"results": results}
 
 @router.post("/compute")
 async def compute(payload: dict = Body(...)):
