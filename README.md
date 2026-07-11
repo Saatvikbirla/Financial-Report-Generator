@@ -130,4 +130,4 @@ Frontend runs at **http://localhost:3000**
 # ⭐ Author
 
 **Saatvik Birla**  
-_Data & Analytics Developer_
+_Data Analyst_
